@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:calendar_friend/feature/edit_schedule/controller/edit_schedule_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:calendar_friend/feature/edit_schedule/screen/edit_schedule_screen.dart';
@@ -201,7 +202,7 @@ class _CalendarPageState extends State<CalendarPage> {
               Get.to(
                 () => EditScheduleScreen(),
                 binding: BindingsBuilder.put(
-                  () => EditScheduleController(DateTime.now()),
+                  () => EditScheduleController(selectedDay: DateTime.now()),
                 ),
               );
             },
