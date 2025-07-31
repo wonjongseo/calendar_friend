@@ -49,9 +49,9 @@
 //   }
 // }
 
-import 'package:calendar_friend/core/auth/controller/google_oauth_contrller.dart';
-import 'package:calendar_friend/feature/calendar/controller/calenda_controller.dart';
 import 'package:calendar_friend/feature/calendar/screen/calendar_day_screen.dart';
+import 'package:calendar_friend/feature/custom_event/controller/custom_event_controller.dart';
+import 'package:calendar_friend/feature/custom_event/models/custom_event.dart';
 import 'package:calendar_friend/feature/edit_schedule/controller/edit_schedule_controller.dart';
 import 'package:calendar_friend/feature/edit_schedule/screen/edit_schedule_screen.dart';
 import 'package:flutter/material.dart';
@@ -60,18 +60,13 @@ import 'package:calendar_view/calendar_view.dart';
 import 'package:googleapis/calendar/v3.dart' as calendar;
 import 'package:intl/intl.dart';
 
-class CalendarScreen extends GetView<CalendarController> {
+class CalendarScreen extends GetView<CustomEventController> {
   const CalendarScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Obx(
       () => Scaffold(
-        floatingActionButton: FloatingActionButton(
-          onPressed: () {
-            GoogleOAuthController.to.handleSignIn();
-          },
-        ),
         backgroundColor: controller.isLoading.value ? Colors.grey : null,
         body: SafeArea(
           child: Stack(
@@ -88,12 +83,15 @@ class CalendarScreen extends GetView<CalendarController> {
                       children: [
                         IconButton(
                           icon: Icon(Icons.chevron_left),
-                          onPressed: () => controller.goToPrevious(),
+                          onPressed:
+                              () => controller.changeCalendar(
+                                type: MoveCalendarType.prevMonth,
+                              ),
                         ),
                         Text(
                           DateFormat.yMMMM(
                             'ja_JP',
-                          ).format(controller.focusedDay.value),
+                          ).format(controller.selectedDay.value),
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
@@ -101,16 +99,24 @@ class CalendarScreen extends GetView<CalendarController> {
                         ),
                         IconButton(
                           icon: Icon(Icons.chevron_right),
-                          onPressed: () => controller.goToNext(),
+                          onPressed:
+                              () => controller.changeCalendar(
+                                type: MoveCalendarType.nextMonth,
+                              ),
                         ),
                       ],
                     ),
                   ),
                   Expanded(
-                    child: MonthView<calendar.Event>(
-                      key: ValueKey(controller.focusedDay.value),
-                      initialMonth: controller.focusedDay.value,
+                    child: MonthView<CustomEvent>(
+                      borderColor: Colors.white12,
+                      key: ValueKey(controller.selectedDay.value),
+                      initialMonth: controller.selectedDay.value,
                       headerBuilder: (_) => SizedBox(),
+                      pagePhysics: NeverScrollableScrollPhysics(),
+                      onPageChange:
+                          (date, page) =>
+                              controller.changeCalendar(dateTime: date),
                       weekDayBuilder: (int dayIndex) {
                         const weekdaysJa = ['日', '月', '火', '水', '木', '金', '土'];
                         return Center(
@@ -141,7 +147,7 @@ class CalendarScreen extends GetView<CalendarController> {
                       },
                       controller:
                           EventController()
-                            ..addAll(_toCalendarEvents(controller.allEvents)),
+                            ..addAll(_toCalendarEvents(controller.events)),
                     ),
                   ),
                 ],
@@ -155,22 +161,17 @@ class CalendarScreen extends GetView<CalendarController> {
     );
   }
 
-  List<CalendarEventData<calendar.Event>> _toCalendarEvents(
-    List<calendar.Event> googleEvents,
+  List<CalendarEventData<CustomEvent>> _toCalendarEvents(
+    List<CustomEvent> customEvents,
   ) {
-    return googleEvents.map((event) {
-      final start =
-          event.start?.dateTime?.toLocal() ??
-          event.start?.date?.toLocal() ??
-          DateTime.now();
-      final end =
-          event.end?.dateTime?.toLocal() ??
-          event.end?.date?.toLocal() ??
-          start.add(Duration(hours: 1));
+    return customEvents.map((event) {
+      final start = event.startTime ?? DateTime.now();
+      final end = event.endTime ?? start.add(Duration(hours: 1));
 
-      return CalendarEventData<calendar.Event>(
+      return CalendarEventData<CustomEvent>(
+        color: googleColorIdMap[event.colorId] ?? Colors.blue,
         title: event.summary ?? '제목 없음',
-        titleStyle: TextStyle(fontSize: 14),
+        titleStyle: TextStyle(fontSize: 14, color: Colors.white),
         date: start,
         startTime: start,
         endTime: end,

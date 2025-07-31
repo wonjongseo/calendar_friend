@@ -31,12 +31,12 @@ class DatetimeHelper {
     return DateFormat("yyyy/MM/dd hh:mm").format(dt);
   }
 
-  static String dateTime2YYYYMMDD(DateTime? dt) {
+  static String dateTime2ymd(DateTime? dt) {
     if (dt == null) return "";
     return DateFormat("yyyy/MM/dd").format(dt);
   }
 
-  static String dateTime2HhMM(DateTime dt) {
+  static String dateTime2hm(DateTime dt) {
     return DateFormat.Hm().format(dt);
   }
 }

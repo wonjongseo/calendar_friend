@@ -1,4 +1,6 @@
 import 'package:calendar_friend/feature/calendar/controller/calenda_controller.dart';
+import 'package:calendar_friend/feature/custom_event/controller/custom_event_controller.dart';
+import 'package:calendar_friend/feature/custom_event/models/custom_event.dart';
 import 'package:calendar_friend/feature/edit_schedule/controller/edit_schedule_controller.dart';
 import 'package:calendar_friend/feature/edit_schedule/screen/edit_schedule_screen.dart';
 import 'package:flutter/material.dart';
@@ -7,60 +9,71 @@ import 'package:calendar_view/calendar_view.dart';
 import 'package:googleapis/calendar/v3.dart' as calendar;
 import 'package:intl/intl.dart';
 
-class CalendarDayScreen extends GetView<CalendarController> {
+class CalendarDayScreen extends GetView<CustomEventController> {
   const CalendarDayScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        actions: [
-          IconButton(
-            onPressed: () {
-              controller.goToEditScreen();
-            },
-            icon: Icon(Icons.add),
-          ),
-        ],
-      ),
-      body: SafeArea(
-        child: Obx(
-          () => Column(
+    return Obx(
+      () => Scaffold(
+        appBar: AppBar(
+          title: topNavigation(),
+          centerTitle: true,
+          // actions: [
+          //   IconButton(
+          //     onPressed: () => controller.goToEditScreen(),
+          //     icon: Icon(Icons.add),
+          //   ),
+          // ],
+        ),
+        bottomNavigationBar: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    IconButton(
-                      icon: Icon(Icons.chevron_left),
-                      onPressed: () => controller.goToPreviousDay(),
-                    ),
-                    Text(
-                      DateFormat.yMMMMd(
-                        'ja_JP',
-                      ).format(controller.selectedDay.value),
+              GestureDetector(
+                onTap: () => controller.goToEditScreen(),
+                child: Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: Colors.blue,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding: EdgeInsets.symmetric(vertical: 16),
+                  margin: EdgeInsets.symmetric(horizontal: 16),
+                  child: Center(
+                    child: Text(
+                      '新規登録',
                       style: TextStyle(
-                        fontSize: 20,
+                        color: Colors.white,
                         fontWeight: FontWeight.bold,
+                        letterSpacing: 2,
+                        fontSize: 18,
                       ),
                     ),
-                    IconButton(
-                      icon: Icon(Icons.chevron_right),
-                      onPressed: () => controller.goToNextDaty(),
-                    ),
-                  ],
+                  ),
                 ),
               ),
+            ],
+          ),
+        ),
+        body: SafeArea(
+          child: Column(
+            children: [
               Expanded(
-                child: DayView<calendar.Event>(
+                child: DayView<CustomEvent>(
                   key: ValueKey(controller.selectedDay.value),
-                  headerStyle: HeaderStyle(),
                   initialDay: controller.selectedDay.value,
+                  onPageChange:
+                      (date, page) => controller.changeCalendar(dateTime: date),
                   showLiveTimeLineInAllDays: true,
+                  onDateTap: (date) {
+                    Get.to(
+                      () => EditScheduleScreen(),
+                      binding: BindingsBuilder.put(
+                        () => EditScheduleController(selectedDay: date),
+                      ),
+                    );
+                  },
                   onEventTap: (event, data) {
                     Get.to(
                       () => EditScheduleScreen(),
@@ -74,14 +87,37 @@ class CalendarDayScreen extends GetView<CalendarController> {
                   },
                   dayTitleBuilder: (_) => SizedBox(),
                   controller:
-                      EventController()
-                        ..addAll(_toCalendarEvents(controller.allEvents)),
+                      controller.eventController
+                        ..addAll(_toCalendarEvents(controller.events)),
                 ),
               ),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget topNavigation() {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        IconButton(
+          icon: Icon(Icons.chevron_left),
+          onPressed:
+              () => controller.changeCalendar(type: MoveCalendarType.prevDay),
+        ),
+        Text(
+          DateFormat.yMMMMd('ja_JP').format(controller.selectedDay.value),
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        ),
+        IconButton(
+          icon: Icon(Icons.chevron_right),
+          onPressed:
+              () => controller.changeCalendar(type: MoveCalendarType.nextDay),
+        ),
+      ],
     );
   }
 
@@ -96,20 +132,14 @@ class CalendarDayScreen extends GetView<CalendarController> {
   //   );
   // }
 
-  List<CalendarEventData<calendar.Event>> _toCalendarEvents(
-    List<calendar.Event> googleEvents,
+  List<CalendarEventData<CustomEvent>> _toCalendarEvents(
+    List<CustomEvent> googleEvents,
   ) {
     return googleEvents.map((event) {
-      final start =
-          event.start?.dateTime?.toLocal() ??
-          event.start?.date?.toLocal() ??
-          DateTime.now();
-      final end =
-          event.end?.dateTime?.toLocal() ??
-          event.end?.date?.toLocal() ??
-          start.add(Duration(hours: 1));
+      final start = event.startTime ?? DateTime.now();
+      final end = event.endTime ?? start.add(Duration(hours: 1));
 
-      return CalendarEventData<calendar.Event>(
+      return CalendarEventData<CustomEvent>(
         title: event.summary ?? '제목 없음',
         titleStyle: TextStyle(fontSize: 12),
         date: start,

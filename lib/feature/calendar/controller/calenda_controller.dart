@@ -9,12 +9,12 @@ import 'package:get/get.dart';
 
 import 'package:googleapis/calendar/v3.dart' as calendar;
 
-class CalendarController extends GetxController {
-  static CalendarController get to => Get.find<CalendarController>();
+class CalendarController3 extends GetxController {
+  static CalendarController3 get to => Get.find<CalendarController3>();
   final GoogleOAuthController _googleOAuthController;
   late final GoogleCalendarRepository _googleCalendarRepository;
 
-  CalendarController(this._googleOAuthController);
+  CalendarController3(this._googleOAuthController);
   final DateTime _today = DateTime.now();
 
   late Rx<DateTime> focusedDay;

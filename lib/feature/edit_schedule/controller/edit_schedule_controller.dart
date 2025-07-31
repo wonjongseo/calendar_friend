@@ -1,57 +1,83 @@
 import 'package:calendar_friend/core/app_string.dart';
+import 'package:calendar_friend/core/auth/controller/google_oauth_contrller.dart';
 import 'package:calendar_friend/core/notification/notification_service.dart';
 import 'package:calendar_friend/core/utilities/log_manager.dart';
 import 'package:calendar_friend/core/utilities/snackbar_helper.dart';
 import 'package:calendar_friend/feature/calendar/controller/calenda_controller.dart';
+import 'package:calendar_friend/feature/custom_event/models/custom_event.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get/state_manager.dart';
 import 'package:calendar_friend/core/utilities/datetime_helper.dart';
 import 'package:googleapis/calendar/v3.dart' as calendar;
+import 'package:uuid/uuid.dart';
 
 class EditScheduleController extends GetxController {
+  final isSyncedWithGoogle = false.obs;
+
+  void toggleSyncedWithGoogle() async {
+    final turnedOn = !isSyncedWithGoogle.value;
+
+    if (turnedOn) {
+      final success = await GoogleOAuthController.to.ensureSignedIn();
+      print('success : ${success}');
+
+      if (success) {
+        isSyncedWithGoogle.value = true;
+      } else {
+        Get.snackbar("로그인 실패", "Google 계정에 로그인할 수 없습니다");
+      }
+    } else {
+      isSyncedWithGoogle.value = false;
+    }
+  }
+
   late Rx<DateTime> _startDateTime;
   late Rx<DateTime> _endDateTime;
 
-  String get startDate =>
-      DatetimeHelper.dateTime2YYYYMMDD(_startDateTime.value);
-  String get endDate => DatetimeHelper.dateTime2YYYYMMDD(_endDateTime.value);
+  String get startDate => DatetimeHelper.dateTime2ymd(_startDateTime.value);
+  String get endDate => DatetimeHelper.dateTime2ymd(_endDateTime.value);
 
-  String get startTime => DatetimeHelper.dateTime2HhMM(_startDateTime.value);
-  String get endTime => DatetimeHelper.dateTime2HhMM(_endDateTime.value);
+  String get startTime => DatetimeHelper.dateTime2hm(_startDateTime.value);
+  String get endTime => DatetimeHelper.dateTime2hm(_endDateTime.value);
 
   late TextEditingController titleTeCtl;
 
   // final calendar.CalendarApi _calendarApi;
   final DateTime selectedDay;
-  final calendar.Event? selectedEvent;
+  final CustomEvent? selectedEvent;
+
+  final selectedColorId = "".obs;
   EditScheduleController({required this.selectedDay, this.selectedEvent});
 
   @override
   void onInit() {
     titleTeCtl = TextEditingController();
     DateTime dt = selectedDay;
-    DateTime now = DateTime.now();
-    _startDateTime = DateTime(dt.year, dt.month, dt.day, now.hour).obs;
-    _endDateTime = DateTime(dt.year, dt.month, dt.day, now.hour + 1).obs;
+    int hour = dt.hour;
+    if (selectedDay.hour == 0) {
+      DateTime now = DateTime.now();
+      hour = now.hour;
+    }
+    _startDateTime = DateTime(dt.year, dt.month, dt.day, hour).obs;
+    _endDateTime = DateTime(dt.year, dt.month, dt.day, hour + 1).obs;
 
     if (selectedEvent != null) {
-      DateTime startDate =
-          selectedEvent!.start?.date ??
-          selectedEvent!.start?.dateTime ??
-          _startDateTime.value;
-      DateTime endDate =
-          selectedEvent!.end?.date ??
-          selectedEvent!.end?.dateTime ??
-          _endDateTime.value;
+      DateTime startDate = selectedEvent!.startTime ?? _startDateTime.value;
+      DateTime endDate = selectedEvent!.endTime ?? _endDateTime.value;
 
       _startDateTime.value = startDate;
       _endDateTime.value = endDate;
 
       titleTeCtl.text = selectedEvent!.summary ?? '';
+      selectedColorId.value = selectedEvent!.colorId ?? '';
     }
 
     super.onInit();
+  }
+
+  void changeColorId(String colorId) {
+    selectedColorId.value = colorId;
   }
 
   @override
@@ -132,17 +158,15 @@ class EditScheduleController extends GetxController {
     }
     test();
 
-    final event =
-        calendar.Event()
-          ..summary = title
-          ..start = calendar.EventDateTime(
-            dateTime: _startDateTime.value,
-            timeZone: "Asia/Tokyo",
-          )
-          ..end = calendar.EventDateTime(
-            dateTime: _endDateTime.value,
-            timeZone: "Asia/Tokyo",
-          );
+    final event = CustomEvent(
+      id: const Uuid().v4(),
+      summary: title,
+      startTime: _startDateTime.value,
+      endTime: _endDateTime.value,
+      isSyncedWithGoogle: isSyncedWithGoogle.value,
+      colorId: selectedColorId.value,
+    );
+
     Get.back(result: event);
     return;
   }
@@ -152,7 +176,7 @@ class EditScheduleController extends GetxController {
     if (selectedEvent == null) return;
     try {
       isLoading(true);
-      await CalendarController.to.delete(selectedEvent!);
+      // await CalendarController.to.delete(selectedEvent!);
     } catch (e) {
       SnackBarHelper.showErrorSnackBar("$e");
       LogManager.error("$e");

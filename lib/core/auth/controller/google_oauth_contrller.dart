@@ -12,8 +12,9 @@ class GoogleOAuthController extends GetxController {
   final _googleSignIn = GoogleSignIn(
     scopes: [calendar.CalendarApi.calendarScope],
   );
+
   @override
-  void onInit() {
+  void onInit() async {
     _googleSignIn.onCurrentUserChanged.listen((account) async {
       if (account != null) {
         final authHeaders = await account.authHeaders;
@@ -27,10 +28,28 @@ class GoogleOAuthController extends GetxController {
     super.onInit();
   }
 
-  Future<void> handleSignIn() async {
-    try {
-      await _googleSignIn.signIn();
-    } catch (error) {}
+  Future<bool> ensureSignedIn() async {
+    if (currentUser != null) return true;
+
+    final user = await _googleSignIn.signInSilently();
+    if (user != null) {
+      final authHeaders = await user.authHeaders;
+      final client = GoogleHttpClient(authHeaders);
+      calendarApi.value = calendar.CalendarApi(client);
+      currentUser = user;
+      return true;
+    }
+
+    final manualUser = await _googleSignIn.signIn();
+    if (manualUser != null) {
+      final authHeaders = await manualUser.authHeaders;
+      final client = GoogleHttpClient(authHeaders);
+      calendarApi.value = calendar.CalendarApi(client);
+      currentUser = manualUser;
+      return true;
+    }
+
+    return false;
   }
 }
 
@@ -77,9 +96,8 @@ class GoogleCalendarRepository {
   }
 
   Future<void> addEvent(calendar.Event event) async {
-    if (_calendarApi == null) return;
-
-    await _calendarApi!.events.insert(event, "primary");
+    final result = await _calendarApi!.events.insert(event, "primary");
+    print('result : ${result}');
   }
 
   Future<void> deleteEvent(calendar.Event event) async {
